@@ -8,5 +8,14 @@ namespace SoundTest
 {
     class HttpManager
     {
+        public HttpManager(string sendFileName)
+        {
+            // TODO
+        }
+
+        public void TransferFile()
+        {
+            // TODO
+        }
     }
 }
