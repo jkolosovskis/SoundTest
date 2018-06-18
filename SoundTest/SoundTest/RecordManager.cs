@@ -1,9 +1,6 @@
 ﻿using System;
 using NAudio.Wave;
-using System.IO;
 using System.Timers;
-using System.Linq;
-using System.Text;
 
 namespace SoundTest
 {
@@ -77,7 +74,7 @@ namespace SoundTest
         /// <summary>
         /// Method which performs a set of closure actions once a sound record of sufficient length is completed.
         /// </summary>
-        private void PerformFinishActions()
+        private async void PerformFinishActions()
         {
             // Deregister the event handler that performed wave data writing to file.
             waveIn.DataAvailable -= (s, a) => WriteToBuffer(s, a);
@@ -91,16 +88,16 @@ namespace SoundTest
             waveFileWriter.Flush();
             waveFileWriter.Dispose();
 
-            // Create a new instance of HttpManager to handle transfer of recorded file to server.
-            // Then instruct the httpManager instance to start file transfer.
-            httpManager = new HttpManager(outputFilePath);
-            httpManager.TransferFile();
-
             // Raise an event to notify parent code that a new RecordManager instance can be created.
             // To avoid race conditions on access to system microphone by RecordManager instances,
             // a 50ms delay is added here.
             System.Threading.Thread.Sleep(50);
             RaiseRecordFinishEvent(this, new EventArgs());
+
+            // Create a new instance of HttpManager to handle transfer of recorded file to server.
+            // Then instruct the httpManager instance to start file transfer.
+            httpManager = new HttpManager(outputFilePath);
+            await httpManager.UploadWavFile();
         }
     }
 }
