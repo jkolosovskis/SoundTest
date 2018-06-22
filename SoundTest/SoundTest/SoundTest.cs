@@ -1,16 +1,15 @@
 ﻿using System;
 using System.IO;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SoundTest
 {
     static class SoundTest
     {
-        private static UInt64 NumberOfTestIterations;
-        private static string SoundFilePath;
+        private static int numberOfTestIterations;
+        private static string soundFilePath;
+        private static int currentRecordManagerInstance = 0;
+        private static List<RecordManager> recordManagerList = new List<RecordManager>();
 
         /// <summary>
         /// Performs starting checks to see if the program was correctly launched.
@@ -20,23 +19,23 @@ namespace SoundTest
         {
             // Start by letting the user know how to use this program.
             Console.WriteLine("Welcome to SoundTest.");
-            Console.WriteLine("Expected use: SoundTest.exe <relative path of playback WAV file>"
+            Console.WriteLine("Expected use: SoundTest.exe <relative path of playback WAV file> "
                               + "<number of test iterations>");
             Console.WriteLine("Arguments for application supplied during launch:");
-            Console.WriteLine("Playback file: " + args[0]);
-            Console.WriteLine("Number of test iterations: " + args[1]);
-
             // Check if correct number of arguments has been supplied.
             if (args.Length < 2)
             {
                 Console.Error.WriteLine("Too few arguments supplied. At least 2 arguments expected.");
                 return false;
             }
+            // Let the user know how the program understood its arguments input.
+            Console.WriteLine("Playback file: " + args[0]);
+            Console.WriteLine("Number of test iterations: " + args[1]);
 
             // Check if the specified file exists.
             // We don't check for correct file format here, only that the file path is valid.
-            SoundFilePath = Directory.GetCurrentDirectory() + @args[0];
-            if (File.Exists(@SoundFilePath) == false)
+            soundFilePath = Directory.GetCurrentDirectory() + @args[0];
+            if (File.Exists(@soundFilePath) == false)
             {
                 Console.Error.WriteLine("Could not resolve provided sound file reference.");
                 Console.Error.WriteLine("Expected reference file format: <relative_path>/<filename.extension>");
@@ -46,16 +45,21 @@ namespace SoundTest
             // Check if the second argument is a natural number and can fit in a 64bit uint.
             try
             {
-                NumberOfTestIterations = Convert.ToUInt64(args[1]);
+                numberOfTestIterations = Convert.ToInt32(args[1]);
+                if (numberOfTestIterations < 1)
+                {
+                    // We received zero or a negative number. That's no good.
+                    throw new FormatException();
+                }
             }
             catch (FormatException)
             {
-                Console.Error.WriteLine("Could not convert second argument to a valid natural number.");
+                Console.Error.WriteLine("Could not convert second argument to a valid non-zero natural number.");
                 return false;
             }
             catch (OverflowException)
             {
-                Console.Error.WriteLine("Specified number of test cycles exceeds capacity of a 64 bit unsigned integer.");
+                Console.Error.WriteLine("Specified number of test cycles exceeds capacity of a 32 bit signed integer.");
                 return false;
             }
 
@@ -74,15 +78,37 @@ namespace SoundTest
                 return;
             }
 
-            // Create instances of our playback, recording and HTTP managers.
-
-            PlaybackManager playbackManager = new PlaybackManager(SoundFilePath);
-
+            // Create instances of our playback and recording managers.
+            PlaybackManager playbackManager = new PlaybackManager(soundFilePath);
+            recordManagerList.Add(new RecordManager(currentRecordManagerInstance));
 
             // If we got until here, it means that we are ready to start working.
-            // Let's start with setting up playback of the specified audio file.
-
+            // Start playback of the specified audio file.
             playbackManager.PlaySound();
+
+            // Start recording external audio via system micropohone.
+            recordManagerList[currentRecordManagerInstance].StartRecording();
+
+            // Set up an event handler to automatically create new instances of
+            // RecordManager to continuously record external audio as soon
+            // as previous instance has finished its work.
+            recordManagerList[currentRecordManagerInstance].RaiseRecordFinishEvent += (s, a) =>
+                HandleRecordFinishEvent(s, a);
+        }
+        static void HandleRecordFinishEvent(object sender, EventArgs args)
+        {
+            // Increment the record manager instance number and create a new instance.
+            currentRecordManagerInstance++;
+            recordManagerList.Add(new RecordManager(currentRecordManagerInstance));
+
+            // Register an event handler for the new record manager finish event.
+            recordManagerList[currentRecordManagerInstance].RaiseRecordFinishEvent += (s, a) =>
+                HandleRecordFinishEvent(s, a);
+
+            // Deregister the event handler for the previous RecordManager instance finish event.
+            // Not strictly necessary, but good practice to do so in this case.
+            recordManagerList[currentRecordManagerInstance - 1].RaiseRecordFinishEvent -= (s, a) =>
+                HandleRecordFinishEvent(s, a);
         }
     }
 }
