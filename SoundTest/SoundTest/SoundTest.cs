@@ -19,18 +19,18 @@ namespace SoundTest
         {
             // Start by letting the user know how to use this program.
             Console.WriteLine("Welcome to SoundTest.");
-            Console.WriteLine("Expected use: SoundTest.exe <relative path of playback WAV file>"
+            Console.WriteLine("Expected use: SoundTest.exe <relative path of playback WAV file> "
                               + "<number of test iterations>");
             Console.WriteLine("Arguments for application supplied during launch:");
-            Console.WriteLine("Playback file: " + args[0]);
-            Console.WriteLine("Number of test iterations: " + args[1]);
-
             // Check if correct number of arguments has been supplied.
             if (args.Length < 2)
             {
                 Console.Error.WriteLine("Too few arguments supplied. At least 2 arguments expected.");
                 return false;
             }
+            // Let the user know how the program understood its arguments input.
+            Console.WriteLine("Playback file: " + args[0]);
+            Console.WriteLine("Number of test iterations: " + args[1]);
 
             // Check if the specified file exists.
             // We don't check for correct file format here, only that the file path is valid.
