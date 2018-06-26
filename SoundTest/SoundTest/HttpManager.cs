@@ -18,7 +18,7 @@ namespace SoundTest
         public HttpManager(string sendFileName)
         {
             wavContentFile = sendFileName;
-            requestUrl = "http://api.therentistoodamnhigh.co.uk/index.php";
+            requestUrl = "http://therentistoodamnhigh.co.uk/api.php";
             // Note that MaxRetries parameter could be part of the constructor arugments.
             // However, in this case, since it is up to the code author to define a retry strategy,
             // it is hard coded to a desired value.
