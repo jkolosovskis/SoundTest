@@ -14,7 +14,6 @@ namespace SoundTest
         private int recordLengthMs = 10 * 1000;
         private int instanceIdentifier;
         private HttpManager httpManager;
-        private bool disposed = false;
         public event EventHandler RaiseRecordFinishEvent;
 
         /// <summary>
