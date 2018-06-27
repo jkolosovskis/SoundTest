@@ -54,6 +54,7 @@
   <ItemGroup>
     <Compile Include="HttpManager.cs" />
     <Compile Include="PlaybackManager.cs" />
+    <Compile Include="ServerInitialiser.cs" />
     <Compile Include="SoundTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RecordManager.cs" />

@@ -80,7 +80,7 @@ namespace SoundTest
         /// </remarks>
         private void WriteToBuffer(object sender, WaveInEventArgs args)
         {
-            Console.WriteLine(String.Format("Transferring {0} bytes of buffer data to file.", args.BytesRecorded));
+            // Console.WriteLine(String.Format("Transferring {0} bytes of buffer data to file.", args.BytesRecorded));
             waveFileWriter.Write(args.Buffer, 0, args.BytesRecorded);
             waveFileWriter.Flush();
         }
