@@ -11,6 +11,7 @@ namespace SoundTest
         private static int numberOfTestIterations;
         private static string soundFilePath;
         private static List<RecordManager> recordManagerList = new List<RecordManager>();
+        private static PlaybackManager playbackManager;
 
         /// <summary>
         /// Performs starting checks to see if the program was correctly launched.
@@ -83,8 +84,12 @@ namespace SoundTest
                 return;
             }
 
+            // Send a command to clear all existing external server file entries.
+            // Note that the call is not awaited, which is intentional.
+            ServerInitialiser.ClearWavfilesDatabase();
+
             // Create instances of our playback and recording managers.
-            PlaybackManager playbackManager = new PlaybackManager(soundFilePath);
+            playbackManager = new PlaybackManager(soundFilePath);
             recordManagerList.Add(new RecordManager(CurrentRecordManagerInstance));
 
             // If we got until here, it means that we are ready to start working.
@@ -126,6 +131,12 @@ namespace SoundTest
                 // Register an event handler for the new record manager finish event.
                 recordManagerList[CurrentRecordManagerInstance].RaiseRecordFinishEvent += (s, a) =>
                     HandleRecordFinishEvent(s, a);
+            }
+            else
+            {
+                // Stop sound playback as soon as the specified amount of work is done.
+                playbackManager.StopSound();
+                Console.WriteLine("All record / playback iterations completed.");
             }
          
             // Deregister the event handler for the previous RecordManager instance finish event.

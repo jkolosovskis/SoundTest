@@ -38,13 +38,20 @@ namespace SoundTest
             {
                 // Define the URL of the REST API method to be invoked on server side:
                 HttpContent fileNameContent = new StringContent(wavContentFile);
+                HttpContent actionContent = new StringContent("add_file");
+                formData.Add(actionContent, "action");
                 formData.Add(wavFileContent, "wavFile");
                 formData.Add(fileNameContent, "name");
 
                 HttpResponseMessage response = new HttpResponseMessage();
                 try
                 {
-                    response = await client.PostAsync(requestUrl + "?action=add_file", formData);
+                    response = await client.PostAsync(requestUrl, formData);
+                    string responseMessage = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine("POST request for transfer of  " 
+                                      + wavContentFile 
+                                      + " returned following response: "
+                                      + responseMessage);
                 }
                 catch (HttpRequestException e)
                 {
