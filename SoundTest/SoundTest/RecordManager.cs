@@ -8,13 +8,12 @@ namespace SoundTest
     {
         WaveInEvent waveIn;
         private WaveFileWriter waveFileWriter;
-        private WaveFormat waveFormat = new WaveFormat();
+        private WaveFormat waveFormat;
         private string outputFilePath;
         private Timer recordLimitTimer;
         private int recordLengthMs = 10 * 1000;
         private int instanceIdentifier;
         private HttpManager httpManager;
-        private bool disposed = false;
         public event EventHandler RaiseRecordFinishEvent;
 
         /// <summary>
@@ -23,12 +22,25 @@ namespace SoundTest
         /// <param name="instanceNumber">Smple number to identify the particular instance of RecordManager.</param>
         public RecordManager(int instanceNumber)
         {
+            // Let the user know that a new instance of RecordManager is created.
+            Console.WriteLine("Creating RecordManager instance " + instanceNumber.ToString());
             // Set up object that will perform sound capture
             waveIn = new WaveInEvent();
+            waveIn.BufferMilliseconds = 100;
+            waveIn.NumberOfBuffers = 2;
+            // Device number 0 - default recording device.
+            waveIn.DeviceNumber = 0;
+            Console.WriteLine("Using recording device " 
+                              + WaveIn.GetCapabilities(waveIn.DeviceNumber).ProductName.ToString());
+            Console.WriteLine("44.1kHz stereo WAV format supported? : " 
+                              + WaveIn.GetCapabilities(waveIn.DeviceNumber)
+                              .SupportsWaveFormat(SupportedWaveFormat.WAVE_FORMAT_44S16).ToString());
             // Specify recorded file storage parameters - format and location.
             instanceIdentifier = instanceNumber;
+            waveFormat = new WaveFormat(44100, WaveIn.GetCapabilities(waveIn.DeviceNumber).Channels);
             outputFilePath = "sample" + instanceIdentifier.ToString() + ".wav";
             waveFileWriter = new WaveFileWriter(outputFilePath, waveFormat);
+            waveIn.WaveFormat = waveFormat;
             // Define a timer that will help in limiting the length of the record to
             // a specified length. Default - 10 seconds.
             recordLimitTimer = new Timer(recordLengthMs);
@@ -68,7 +80,9 @@ namespace SoundTest
         /// </remarks>
         private void WriteToBuffer(object sender, WaveInEventArgs args)
         {
+            Console.WriteLine(String.Format("Transferring {0} bytes of buffer data to file.", args.BytesRecorded));
             waveFileWriter.Write(args.Buffer, 0, args.BytesRecorded);
+            waveFileWriter.Flush();
         }
 
         /// <summary>
@@ -79,13 +93,11 @@ namespace SoundTest
             // Deregister the event handler that performed wave data writing to file.
             waveIn.DataAvailable -= (s, a) => WriteToBuffer(s, a);
 
-            // Stop recording audio data and dispose of the wave recorder instance.
+            // Stop recording audio data.  
+            Console.WriteLine("Stopping recording for RecordManager instance " + instanceIdentifier.ToString());
             waveIn.StopRecording();
-            waveIn.Dispose();
 
-            // Write all remaining audio data to file and update WAV file header,
-            // then dispose of the stream manager object.
-            waveFileWriter.Flush();
+            waveIn.Dispose();
             waveFileWriter.Dispose();
 
             // Raise an event to notify parent code that a new RecordManager instance can be created.

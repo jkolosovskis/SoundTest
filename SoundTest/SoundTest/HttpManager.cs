@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Security.Cryptography;
 using System.Net.Http;
 using System.Threading.Tasks;
 
@@ -19,7 +18,7 @@ namespace SoundTest
         public HttpManager(string sendFileName)
         {
             wavContentFile = sendFileName;
-            requestUrl = "http://52.191.174.19/wavfiles/";
+            requestUrl = "http://therentistoodamnhigh.co.uk/api.php";
             // Note that MaxRetries parameter could be part of the constructor arugments.
             // However, in this case, since it is up to the code author to define a retry strategy,
             // it is hard coded to a desired value.
@@ -32,16 +31,30 @@ namespace SoundTest
         /// <param name="wavFileContent">Byte array of the WAV file to be transmitted.</param>
         /// <param name="fileHash">SHA256 hash of the WAV file to be transmitted.</param>
         /// <returns>Response HTTP message from remote server, or a HTTP error code.</returns>
-        private async Task<HttpResponseMessage> PerformPostRequest(HttpContent wavFileContent, HttpContent fileHash)
+        private async Task<HttpResponseMessage> PerformPostRequest(HttpContent wavFileContent)
         {
             using (HttpClient client = new HttpClient())
             using (MultipartFormDataContent formData = new MultipartFormDataContent())
             {
-                // Define the address of the REST API method to be invoked on server side:
+                // Define the URL of the REST API method to be invoked on server side:
+                HttpContent fileNameContent = new StringContent(wavContentFile);
+                formData.Add(wavFileContent, "wavFile");
+                formData.Add(fileNameContent, "name");
 
-                formData.Add(wavFileContent, "wavFile", "wavFile");
-                formData.Add(fileHash, "fileHash", "fileHash");
-                HttpResponseMessage response = await client.PostAsync(requestUrl, formData);
+                HttpResponseMessage response = new HttpResponseMessage();
+                try
+                {
+                    response = await client.PostAsync(requestUrl + "?action=add_file", formData);
+                }
+                catch (HttpRequestException e)
+                {
+                    Console.Error.WriteLine("Exception thrown when performing HTTP POST request: "
+                                            + e.Message);
+                    // Create a generic BadRequest response.
+                    // If this was not a one-man project, a more detailed analysis of
+                    // failure reason would be done here.
+                    response.StatusCode = System.Net.HttpStatusCode.BadRequest;
+                }
                 return response;
             }
         }
@@ -50,8 +63,8 @@ namespace SoundTest
         /// Method which checks for errors in response to a previously executed HTTP POST request.
         /// </summary>
         /// <param name="response">HTTP response to be evaluated.</param>
-        /// <returns>True if response is OK on HTTP and application levels, otherwise returns false.</returns>
-        private async Task<bool> EvaluatePostResponse(HttpResponseMessage response)
+        /// <returns>True if response is OK, otherwise returns false.</returns>
+        private bool EvaluatePostResponse(HttpResponseMessage response)
         {
             // Check if the response contains a positive HTTP level response code.
             if (!response.IsSuccessStatusCode)
@@ -60,27 +73,11 @@ namespace SoundTest
                 // Let the user know with an error printout what happened.
                 Console.WriteLine("ERROR: HTTP POST request for sample "
                                     + wavContentFile
-                                    + " returned HTTP error code " +
+                                    + " returned error code " +
                                     response.StatusCode.ToString());
                 return false;
             }
-            else
-            {
-                // Check if the server responded with an application level OK to our request.
-                string responseMessage = await response.Content.ReadAsStringAsync();
-                if (responseMessage.Equals("OK") == false)
-                {
-                    // Something went wrong.
-                    // Let the user know what's wrong with an error printout.
-                    Console.Error.WriteLine("ERROR: API NACK received for sample "
-                                        + wavContentFile
-                                        + " with the following content: "
-                                        + response.Content.ReadAsStringAsync());
-                    return false;
-                }
-                // If we got this far, then everything is OK.
-                return true;
-            }
+            else return true;
         }
 
         /// <summary>
@@ -111,22 +108,17 @@ namespace SoundTest
                 }
             }
 
-            // Calculate the checksum of the wave file to be sent.
-            SHA256Managed sha256 = new SHA256Managed();
-            byte[] calculatedHash = sha256.ComputeHash(wavFileData);
-
             // Create HttpContent objects to mimic form data for building a POST request.
             HttpContent wavFileContent = new ByteArrayContent(wavFileData);
-            HttpContent fileHash = new ByteArrayContent(calculatedHash);
 
             // Transmit the HTTP post request.
-            HttpResponseMessage response = await PerformPostRequest(wavFileContent, fileHash);
+            HttpResponseMessage response = await PerformPostRequest(wavFileContent);
 
             // Define a retransmission mechanism in case of failures.
             // In our example, we use a simple limited re-transmission mechanism before giving up.
             for (int retryNumber = 1; retryNumber <= MaxRetries; retryNumber++)
             {
-                bool isResponseOk = await EvaluatePostResponse(response);
+                bool isResponseOk = EvaluatePostResponse(response);
                 if (isResponseOk == false)
                 {
                     // Something went wrong. Let's try again.
@@ -137,7 +129,7 @@ namespace SoundTest
                     // Note that here we do not re-create a new HTTP request.
                     // This is intentional, as it is assumed that the request creation is always successful.
                     // To be changed in case of errors in this assumption found during testing.
-                    response = await PerformPostRequest(wavFileContent, fileHash);
+                    response = await PerformPostRequest(wavFileContent);
                 }
                 else
                 {
