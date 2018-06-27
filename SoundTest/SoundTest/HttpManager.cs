@@ -40,7 +40,21 @@ namespace SoundTest
                 HttpContent fileNameContent = new StringContent(wavContentFile);
                 formData.Add(wavFileContent, "wavFile");
                 formData.Add(fileNameContent, "name");
-                HttpResponseMessage response = await client.PostAsync(requestUrl + "?action=add_file", formData);
+
+                HttpResponseMessage response = new HttpResponseMessage();
+                try
+                {
+                    response = await client.PostAsync(requestUrl + "?action=add_file", formData);
+                }
+                catch (HttpRequestException e)
+                {
+                    Console.Error.WriteLine("Exception thrown when performing HTTP POST request: "
+                                            + e.Message);
+                    // Create a generic BadRequest response.
+                    // If this was not a one-man project, a more detailed analysis of
+                    // failure reason would be done here.
+                    response.StatusCode = System.Net.HttpStatusCode.BadRequest;
+                }
                 return response;
             }
         }

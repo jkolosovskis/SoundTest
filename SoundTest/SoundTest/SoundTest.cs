@@ -6,9 +6,10 @@ namespace SoundTest
 {
     static class SoundTest
     {
+        static int CurrentRecordManagerInstance { get; set; }
+
         private static int numberOfTestIterations;
         private static string soundFilePath;
-        private static int currentRecordManagerInstance = 0;
         private static List<RecordManager> recordManagerList = new List<RecordManager>();
 
         /// <summary>
@@ -34,11 +35,12 @@ namespace SoundTest
 
             // Check if the specified file exists.
             // We don't check for correct file format here, only that the file path is valid.
-            soundFilePath = Directory.GetCurrentDirectory() + @args[0];
+            soundFilePath = Directory.GetCurrentDirectory() + @"\" + @args[0];
             if (File.Exists(@soundFilePath) == false)
             {
                 Console.Error.WriteLine("Could not resolve provided sound file reference.");
-                Console.Error.WriteLine("Expected reference file format: <relative_path>/<filename.extension>");
+                Console.Error.WriteLine("Current working directory: " + Directory.GetCurrentDirectory());
+                Console.Error.WriteLine("File target interpreted as " + soundFilePath);
                 return false;
             }
 
@@ -63,6 +65,9 @@ namespace SoundTest
                 return false;
             }
 
+            // Initialise the current record sample counter to zero.
+            CurrentRecordManagerInstance = 0;
+
             return true;
         }
 
@@ -80,34 +85,52 @@ namespace SoundTest
 
             // Create instances of our playback and recording managers.
             PlaybackManager playbackManager = new PlaybackManager(soundFilePath);
-            recordManagerList.Add(new RecordManager(currentRecordManagerInstance));
+            recordManagerList.Add(new RecordManager(CurrentRecordManagerInstance));
 
             // If we got until here, it means that we are ready to start working.
             // Start playback of the specified audio file.
             playbackManager.PlaySound();
 
             // Start recording external audio via system micropohone.
-            recordManagerList[currentRecordManagerInstance].StartRecording();
+            recordManagerList[CurrentRecordManagerInstance].StartRecording();
 
             // Set up an event handler to automatically create new instances of
             // RecordManager to continuously record external audio as soon
             // as previous instance has finished its work.
-            recordManagerList[currentRecordManagerInstance].RaiseRecordFinishEvent += (s, a) =>
+            recordManagerList[CurrentRecordManagerInstance].RaiseRecordFinishEvent += (s, a) =>
                 HandleRecordFinishEvent(s, a);
+
+            // Wait for user input in order to freeze the main thread and allow early quit
+            // from the application if necessary.
+            Console.WriteLine("Press any key to quit the application.");
+            Console.ReadKey();
         }
+
+        /// <summary>
+        /// Event handler function to be used for managing recording of subsequent samples.
+        /// </summary>
+        /// <param name="sender">Reference to the caller object.</param>
+        /// <param name="args">Generic event arguments instance (no data expected to be passed).</param>
         static void HandleRecordFinishEvent(object sender, EventArgs args)
         {
-            // Increment the record manager instance number and create a new instance.
-            currentRecordManagerInstance++;
-            recordManagerList.Add(new RecordManager(currentRecordManagerInstance));
+            // Increment the record manager instance number and create a new instance,
+            // if necessary.
+            CurrentRecordManagerInstance++;
+            if (CurrentRecordManagerInstance < numberOfTestIterations)
+            {
+                recordManagerList.Add(new RecordManager(CurrentRecordManagerInstance));
 
-            // Register an event handler for the new record manager finish event.
-            recordManagerList[currentRecordManagerInstance].RaiseRecordFinishEvent += (s, a) =>
-                HandleRecordFinishEvent(s, a);
+                // Instruct the new record manager to start recording.
+                recordManagerList[CurrentRecordManagerInstance].StartRecording();
 
+                // Register an event handler for the new record manager finish event.
+                recordManagerList[CurrentRecordManagerInstance].RaiseRecordFinishEvent += (s, a) =>
+                    HandleRecordFinishEvent(s, a);
+            }
+         
             // Deregister the event handler for the previous RecordManager instance finish event.
             // Not strictly necessary, but good practice to do so in this case.
-            recordManagerList[currentRecordManagerInstance - 1].RaiseRecordFinishEvent -= (s, a) =>
+            recordManagerList[CurrentRecordManagerInstance - 1].RaiseRecordFinishEvent -= (s, a) =>
                 HandleRecordFinishEvent(s, a);
         }
     }
